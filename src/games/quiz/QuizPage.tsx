@@ -67,6 +67,17 @@ const QuizPage = () => {
           <p className="text-lg mb-4">
             {questions[currentQuestion].question}
           </p>
+          <div className="flex flex-col gap-2">
+            {questions[currentQuestion].options.map((option, index) => (
+              <button
+                key={index}
+                onClick={() => handleAnswer(option)}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
