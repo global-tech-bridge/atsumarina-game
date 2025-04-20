@@ -8,6 +8,7 @@ export default function Home() {
         <li><Link to="/games/quiz">クイズゲーム</Link></li>
         <li><Link to="/games/othello">オセロ</Link></li>
         <li><Link to="/games/shooter">シューティング</Link></li>
+        <li><Link to="/games/block">ブロック落下ゲーム</Link></li>
       </ul>
     </div>
   )
