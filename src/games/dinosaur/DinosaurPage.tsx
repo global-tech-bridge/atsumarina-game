@@ -49,36 +49,49 @@ const DinoGame: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isGameOver, isJumping]);
 
+  const scoreRef = useRef(0); // ★ スコア用のrefを追加！
+
+
   // サボテンの移動と衝突判定
   useEffect(() => {
     let cactusPosition = 600;
     let animationFrame: number;
-
+    let passed = false; // ★ 通過したかどうかのフラグを追加
+  
     const moveCactus = () => {
       if (!cactusRef.current || !dinoRef.current || isGameOver) return;
-
+  
       cactusPosition -= 5;
       cactusRef.current.style.right = `${600 - cactusPosition}px`;
-
+  
       const dinoBottom = parseInt(window.getComputedStyle(dinoRef.current).getPropertyValue("bottom"));
-
+  
+      // 衝突判定
       if (cactusPosition < 90 && cactusPosition > 50 && dinoBottom < 40) {
         setIsGameOver(true);
         return;
       }
+  
+      // ★ 通過判定
+      if (cactusPosition < 50 && !passed) {
+        scoreRef.current += 1;       // ★ 最新スコアをrefで更新
+        setScore(scoreRef.current);  // ★ 画面描画用にstateも更新
+        console.log("Score: ", scoreRef.current);
+        passed = true;
+      }
 
       if (cactusPosition < -20) {
         cactusPosition = 600;
-        setScore((prev) => prev + 1);
+        passed = false; // 新しいサボテンに向けてリセット
       }
-
+  
       animationFrame = requestAnimationFrame(moveCactus);
     };
-
+  
     animationFrame = requestAnimationFrame(moveCactus);
     return () => cancelAnimationFrame(animationFrame);
-  }, [isGameOver]);
-
+  }, [isGameOver, score]);
+  
   return (
     <div
       ref={gameRef}
