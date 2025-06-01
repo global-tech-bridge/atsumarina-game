@@ -11,6 +11,11 @@ const DinoGame: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [score, setScore] = useState(0);
 
+  const [obstacles, setObstacles] = useState<
+  { id: number; type: "cactus" | "bird"; left: number; height: number }[]
+  >([]);
+
+
   // ジャンプ処理
   const jump = () => {
     if (isJumping) return;
@@ -53,12 +58,34 @@ const DinoGame: React.FC = () => {
 
   const scoreRef = useRef(0); // ★ スコア用のrefを追加！
 
+  useEffect(() => {
+    if (isGameOver) return;
+  
+    const spawnInterval = setInterval(() => {
+      const id = Date.now();
+      const type = Math.random() < 0.5 ? "cactus" : "bird";
+      const height = type === "bird" ? (Math.random() < 0.5 ? 80 : 120) : 0;
+  
+      setObstacles((prev) => [
+        ...prev,
+        { id, type, left: 600, height },
+      ]);
+    }, Math.random() * 2000 + 1000); // ★ ランダムな間隔（1000ms〜3000ms）
+  
+    return () => clearInterval(spawnInterval);
+  }, [isGameOver]);  
+
 
   // サボテンの移動と衝突判定
   useEffect(() => {
-    let cactusPosition = 600;
+    let cactusPosition = 600 + Math.floor(Math.random() * 400); // 600〜1000 のランダムな開始位置
     let animationFrame: number;
     let passed = false; // ★ 通過したかどうかのフラグを追加
+
+    if (cactusPosition < -20) {
+      cactusPosition = 600 + Math.floor(Math.random() * 400);
+      passed = false;
+    }
   
     const moveCactus = () => {
       console.log("true判定", !cactusRef.current || !dinoRef.current || isGameOver);
@@ -66,7 +93,7 @@ const DinoGame: React.FC = () => {
   
       cactusPosition -= 5;
       console.log("Cactus Position: ", cactusPosition);
-      cactusRef.current.style.right = `${600 - cactusPosition}px`;
+      cactusRef.current.style.left = `${cactusPosition}px`;
   
       const dinoBottom = parseInt(window.getComputedStyle(dinoRef.current).getPropertyValue("bottom"));
   
@@ -85,7 +112,7 @@ const DinoGame: React.FC = () => {
       }
 
       if (cactusPosition < -20) {
-        cactusPosition = 600;
+        cactusPosition = 100;
         passed = false; // 新しいサボテンに向けてリセット
       }
   
@@ -98,7 +125,7 @@ const DinoGame: React.FC = () => {
 
   // useEffect で鳥の移動処理を追加
   useEffect(() => {
-    let birdPosition = 300;
+    let birdPosition = 600;
     let animationFrame: number;
     let passed = false;
 
@@ -163,28 +190,30 @@ const DinoGame: React.FC = () => {
           transition: "bottom 0.1s",
         }}
       />
-      <div
+      <img
+        src="/cactus.png"
         ref={cactusRef}
         style={{
-          width: 20,
+          width: 60,
           height: 40,
-          backgroundColor: "red",
           position: "absolute",
           bottom: 0,
           right: -20,
         }}
+        alt="Cactus"
       />
-      <div
+      <img
+        src="/bird.png"
         ref={birdRef}
         style={{
           width: 30,
           height: 30,
-          backgroundColor: "blue",
           position: "absolute",
           bottom: 100, // ← 高さ（ジャンプで回避）
           right: -70,
           borderRadius: "50%",
         }}
+        alt="Bird"
       />
       <div
         style={{
