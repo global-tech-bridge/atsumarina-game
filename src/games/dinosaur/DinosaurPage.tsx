@@ -60,20 +60,20 @@ const DinoGame: React.FC = () => {
 
   useEffect(() => {
     if (isGameOver) return;
-  
+
     const spawnInterval = setInterval(() => {
       const id = Date.now();
       const type = Math.random() < 0.5 ? "cactus" : "bird";
       const height = type === "bird" ? (Math.random() < 0.5 ? 80 : 120) : 0;
-  
+
       setObstacles((prev) => [
         ...prev,
         { id, type, left: 600, height },
       ]);
     }, Math.random() * 2000 + 1000); // ★ ランダムな間隔（1000ms〜3000ms）
-  
+
     return () => clearInterval(spawnInterval);
-  }, [isGameOver]);  
+  }, [isGameOver]);
 
 
   // サボテンの移動と衝突判定
@@ -86,23 +86,23 @@ const DinoGame: React.FC = () => {
       cactusPosition = 600 + Math.floor(Math.random() * 400);
       passed = false;
     }
-  
+
     const moveCactus = () => {
       console.log("true判定", !cactusRef.current || !dinoRef.current || isGameOver);
       if (!cactusRef.current || !dinoRef.current || isGameOver) return;
-  
+
       cactusPosition -= 5;
       console.log("Cactus Position: ", cactusPosition);
       cactusRef.current.style.left = `${cactusPosition}px`;
-  
+
       const dinoBottom = parseInt(window.getComputedStyle(dinoRef.current).getPropertyValue("bottom"));
-  
+
       // 衝突判定
       if (cactusPosition < 90 && cactusPosition > 50 && dinoBottom < 40) {
         setIsGameOver(true);
         return;
       }
-  
+
       // ★ 通過判定
       if (cactusPosition < 50 && !passed) {
         scoreRef.current += 1;       // ★ 最新スコアをrefで更新
@@ -112,16 +112,16 @@ const DinoGame: React.FC = () => {
       }
 
       if (cactusPosition < -20) {
-        cactusPosition = 100;
+        cactusPosition = 600;
         passed = false; // 新しいサボテンに向けてリセット
       }
-  
+
       animationFrame = requestAnimationFrame(moveCactus);
     };
-  
+
     animationFrame = requestAnimationFrame(moveCactus);
     return () => cancelAnimationFrame(animationFrame);
-  }, [isGameOver, score]);
+  }, [isGameOver]);
 
   // useEffect で鳥の移動処理を追加
   useEffect(() => {
@@ -163,7 +163,7 @@ const DinoGame: React.FC = () => {
     return () => cancelAnimationFrame(animationFrame);
   }, [isGameOver]);
 
-  
+
   return (
     <div
       ref={gameRef}
