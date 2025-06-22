@@ -1,150 +1,296 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
-const GAME_WIDTH = 400;
-const GAME_HEIGHT = 600;
-const PLAYER_WIDTH = 40;
-const PLAYER_HEIGHT = 20;
-const ENEMY_WIDTH = 40;
-const ENEMY_HEIGHT = 20;
-const BULLET_WIDTH = 5;
-const BULLET_HEIGHT = 10;
-
-const ShooterPage = () => {
-  const [playerX, setPlayerX] = useState(GAME_WIDTH / 2 - PLAYER_WIDTH / 2);
+const Game = () => {
+  const canvasRef = useRef(null);
+  const [playerX, setPlayerX] = useState(200);
   const [bullets, setBullets] = useState([]);
-  const [enemyY, setEnemyY] = useState(0);
-  const [enemyX, setEnemyX] = useState(GAME_WIDTH / 2 - ENEMY_WIDTH / 2);
-  const [enemyAlive, setEnemyAlive] = useState(true);
-  const [gameOver, setGameOver] = useState(false);
-  const gameRef = useRef<HTMLDivElement>(null);
+  const [enemies, setEnemies] = useState([]);
+  const [hearts, setHearts] = useState([]);
+  const [isRunning, setIsRunning] = useState(true);
+  const [score, setScore] = useState(0);
+  const [life, setLife] = useState(3);
+  const [lastShotTime, setLastShotTime] = useState(0);
+  const [boss, setBoss] = useState(null);
+  const [bossBullets, setBossBullets] = useState([]);
+  const [gameClear, setGameClear] = useState(false);
 
-  // キー操作
+  const canvasWidth = 400;
+  const canvasHeight = 600;
+  const shotCooldown = 300;
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        setPlayerX((x) => Math.max(0, x - 10));
-      } else if (e.key === 'ArrowRight') {
-        setPlayerX((x) => Math.min(GAME_WIDTH - PLAYER_WIDTH, x + 10));
-      } else if (e.key === ' ') {
-        setBullets((prev) => [
-          ...prev,
-          { x: playerX + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2, y: GAME_HEIGHT - PLAYER_HEIGHT - BULLET_HEIGHT }
-        ]);
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft" || e.key === "a") {
+        setPlayerX((prev) => Math.max(prev - 20, 0));
+      } else if (e.key === "ArrowRight" || e.key === "d") {
+        setPlayerX((prev) => Math.min(prev + 20, canvasWidth - 40));
+      } else if (e.key === " ") {
+        const now = Date.now();
+        if (now - lastShotTime >= shotCooldown) {
+          setBullets((prev) => [...prev, { x: playerX + 15, y: 500 }]);
+          setLastShotTime(now);
+        }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [playerX]);
 
-  // 弾と敵の移動処理
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [playerX, lastShotTime]);
+
   useEffect(() => {
-    if (gameOver || !enemyAlive) return;
+    if (score >= 1000 && !boss) {
+      setBoss({ x: 150, y: 50, hp: 10, direction: 1 });
+    }
+  }, [score, boss]);
+
+  useEffect(() => {
+    const bossFireInterval = setInterval(() => {
+      if (boss && isRunning && !gameClear) {
+        setBossBullets((prev) => [
+          ...prev,
+          { x: boss.x + 45, y: boss.y + 50 },
+        ]);
+      }
+    }, 1500);
+    return () => clearInterval(bossFireInterval);
+  }, [boss, isRunning, gameClear]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      // 弾の移動
+      if (!isRunning || life <= 0 || gameClear) return;
+
       setBullets((prev) =>
-        prev
-          .map((b) => ({ ...b, y: b.y - 10 }))
-          .filter((b) => b.y > 0)
+        prev.map((b) => ({ ...b, y: b.y - 10 })).filter((b) => b.y > 0)
       );
 
-      // 敵の移動
-      setEnemyY((y) => y + 2);
-      setEnemyX((x) => {
-        const direction = Math.random() < 0.5 ? -1 : 1;
-        let nextX = x + direction * 5;
-        if (nextX < 0) nextX = 0;
-        if (nextX > GAME_WIDTH - ENEMY_WIDTH) nextX = GAME_WIDTH - ENEMY_WIDTH;
-        return nextX;
+      setBossBullets((prevBullets) => {
+        const updated = [];
+        for (const bullet of prevBullets) {
+          const newY = bullet.y + 5;
+          const hitPlayer =
+            newY + 10 > 520 &&
+            newY < 560 &&
+            bullet.x + 5 > playerX &&
+            bullet.x < playerX + 40;
+
+          if (hitPlayer) {
+            setLife((prev) => {
+              const newLife = prev - 1;
+              if (newLife <= 0) setIsRunning(false);
+              return Math.max(0, newLife);
+            });
+            continue;
+          }
+
+          if (newY < canvasHeight) {
+            updated.push({ x: bullet.x, y: newY });
+          }
+        }
+        return updated;
+      });
+
+      setEnemies((prev) => {
+        const updated = [];
+        for (const e of prev) {
+          const newY = e.y + 5;
+          const hitPlayer =
+            newY + 30 > 520 && newY < 560 && e.x + 30 > playerX && e.x < playerX + 40;
+          if (hitPlayer || newY > canvasHeight) {
+            setLife((prevLife) => {
+              const newLife = prevLife - 1;
+              if (newLife <= 0) setIsRunning(false);
+              return Math.max(0, newLife);
+            });
+            continue;
+          }
+          updated.push({ ...e, y: newY });
+        }
+        return updated;
+      });
+
+      if (boss) {
+        setBoss((prev) => {
+          let newX = prev.x + prev.direction * 2;
+          let newDir = prev.direction;
+          if (newX < 0 || newX > canvasWidth - 100) {
+            newDir *= -1;
+            newX = Math.max(0, Math.min(newX, canvasWidth - 100));
+          }
+          return { ...prev, x: newX, direction: newDir };
+        });
+      }
+
+      setBullets((prevBullets) => {
+        const updatedBullets = [];
+        let updatedEnemies = [...enemies];
+        for (const bullet of prevBullets) {
+          let hit = false;
+          for (let i = 0; i < updatedEnemies.length; i++) {
+            const enemy = updatedEnemies[i];
+            if (
+              bullet.x < enemy.x + 30 &&
+              bullet.x + 5 > enemy.x &&
+              bullet.y < enemy.y + 30 &&
+              bullet.y + 10 > enemy.y
+            ) {
+              updatedEnemies.splice(i, 1);
+              setEnemies(updatedEnemies);
+              setScore((prev) => prev + 100);
+              hit = true;
+              break;
+            }
+          }
+
+          if (!hit) {
+            if (boss &&
+              bullet.x < boss.x + 100 &&
+              bullet.x + 5 > boss.x &&
+              bullet.y < boss.y + 50 &&
+              bullet.y + 10 > boss.y) {
+              setBoss((prev) => {
+                const newHp = prev.hp - 1;
+                if (newHp <= 0) {
+                  setScore((s) => s + 1000);
+                  setGameClear(true);
+                  setIsRunning(false);
+                  return null;
+                }
+                return { ...prev, hp: newHp };
+              });
+              continue;
+            }
+            updatedBullets.push(bullet);
+          }
+        }
+        return updatedBullets;
+      });
+
+      setHearts((prev) => {
+        const updated = [];
+        for (const heart of prev) {
+          const newY = heart.y + 4;
+          const collected =
+            newY + 20 > 520 &&
+            newY < 560 &&
+            heart.x + 20 > playerX &&
+            heart.x < playerX + 40;
+          if (collected) {
+            setLife((prev) => Math.min(prev + 1, 3));
+            continue;
+          }
+          if (newY <= canvasHeight) updated.push({ ...heart, y: newY });
+        }
+        return updated;
       });
     }, 100);
 
     return () => clearInterval(interval);
-  }, [gameOver, enemyAlive]);
+  }, [enemies, isRunning, life, playerX, boss, gameClear]);
 
-  // 衝突判定
   useEffect(() => {
-    if (!enemyAlive || gameOver) return;
-
-    // 弾と敵の衝突
-    bullets.forEach((bullet) => {
-      if (
-        bullet.x < enemyX + ENEMY_WIDTH &&
-        bullet.x + BULLET_WIDTH > enemyX &&
-        bullet.y < enemyY + ENEMY_HEIGHT &&
-        bullet.y + BULLET_HEIGHT > enemyY
-      ) {
-        setEnemyAlive(false);
+    const spawnInterval = setInterval(() => {
+      if (isRunning && life > 0 && !gameClear) {
+        setEnemies((prev) => [
+          ...prev,
+          { x: Math.random() * (canvasWidth - 30), y: 0 },
+        ]);
       }
-    });
+    }, 1500);
 
-    // 自機と敵の衝突
-    const playerY = GAME_HEIGHT - PLAYER_HEIGHT;
-    if (
-      enemyX < playerX + PLAYER_WIDTH &&
-      enemyX + ENEMY_WIDTH > playerX &&
-      enemyY + ENEMY_HEIGHT > playerY
-    ) {
-      setGameOver(true);
+    return () => clearInterval(spawnInterval);
+  }, [isRunning, life, gameClear]);
+
+  useEffect(() => {
+    const heartInterval = setInterval(() => {
+      if (isRunning && Math.random() < 0.3 && !gameClear) {
+        setHearts((prev) => [
+          ...prev,
+          { x: Math.random() * (canvasWidth - 20), y: 0 },
+        ]);
+      }
+    }, 5000);
+    return () => clearInterval(heartInterval);
+  }, [isRunning, gameClear]);
+
+  useEffect(() => {
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = "blue";
+    ctx.fillRect(playerX, 520, 40, 40);
+    ctx.fillStyle = "red";
+    bullets.forEach((b) => ctx.fillRect(b.x, b.y, 5, 10));
+    ctx.fillStyle = "green";
+    enemies.forEach((e) => ctx.fillRect(e.x, e.y, 30, 30));
+    ctx.fillStyle = "pink";
+    hearts.forEach((h) => ctx.fillRect(h.x, h.y, 20, 20));
+    ctx.fillStyle = "orange";
+    bossBullets.forEach((b) => ctx.fillRect(b.x, b.y, 5, 10));
+    if (boss) {
+      ctx.fillStyle = "purple";
+      ctx.fillRect(boss.x, boss.y, 100, 50);
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText(`HP: ${boss.hp}`, boss.x + 25, boss.y + 30);
     }
-  }, [bullets, enemyY, enemyX, enemyAlive, playerX, gameOver]);
+  });
+
+  const resetGame = () => {
+    setPlayerX(200);
+    setBullets([]);
+    setEnemies([]);
+    setHearts([]);
+    setBossBullets([]);
+    setIsRunning(true);
+    setScore(0);
+    setLife(3);
+    setLastShotTime(0);
+    setBoss(null);
+    setGameClear(false);
+  };
 
   return (
-    <div>
-      <h1>シューティングゲーム</h1>
-      {gameOver && <h2 style={{ color: 'red' }}>ゲームオーバー！</h2>}
-      <div
-        ref={gameRef}
-        style={{
-          position: 'relative',
-          width: GAME_WIDTH,
-          height: GAME_HEIGHT,
-          backgroundColor: '#000',
-          overflow: 'hidden',
-        }}
-      >
-        {/* 自機 */}
-        <div
-          style={{
-            position: 'absolute',
-            width: PLAYER_WIDTH,
-            height: PLAYER_HEIGHT,
-            backgroundColor: 'lime',
-            bottom: 0,
-            left: playerX,
-          }}
-        />
-
-        {/* 敵機 */}
-        {enemyAlive && (
-          <div
-            style={{
-              position: 'absolute',
-              width: ENEMY_WIDTH,
-              height: ENEMY_HEIGHT,
-              backgroundColor: 'red',
-              top: enemyY,
-              left: enemyX,
-            }}
-          />
-        )}
-
-        {/* 弾 */}
-        {bullets.map((bullet, index) => (
-          <div
-            key={index}
-            style={{
-              position: 'absolute',
-              width: BULLET_WIDTH,
-              height: BULLET_HEIGHT,
-              backgroundColor: 'white',
-              left: bullet.x,
-              top: bullet.y,
-            }}
-          />
-        ))}
+    <div className="flex flex-col items-center mt-4">
+      <div className="text-lg font-bold mb-2">
+        スコア: {score} / ライフ: {life}
       </div>
+
+      <canvas
+        ref={canvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{ border: "2px solid black" }}
+      />
+
+      {gameClear ? (
+        <div className="text-center mt-4">
+          <div className="text-2xl font-bold text-green-600">🎉 ゲームクリア 🎉</div>
+          <button
+            onClick={resetGame}
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            もう一度プレイ
+          </button>
+        </div>
+      ) : !isRunning && life <= 0 ? (
+        <div className="text-center mt-4">
+          <div className="text-2xl font-bold text-red-600">ゲームオーバー</div>
+          <button
+            onClick={resetGame}
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            リスタート
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsRunning(!isRunning)}
+          className="mt-2 px-4 py-2 bg-gray-300 rounded"
+        >
+          {isRunning ? "停止" : "再開"}
+        </button>
+      )}
     </div>
   );
 };
 
-export default ShooterPage;
+export default Game;
