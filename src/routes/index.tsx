@@ -4,6 +4,7 @@ import QuizPage from '../games/quiz/QuizPage'
 import OthelloPage from '../games/othello/OthelloPage'
 import ShooterPage from '../games/shooter/ShooterPage'
 import DinosaurPage from '../games/dinosaur/DinosaurPage'
+import AirhockeyPage from '../games/airhockey/AirhockeyPage'
 import NotFound from '../pages/NotFound'
 
 export default function AppRoutes() {
@@ -15,6 +16,7 @@ export default function AppRoutes() {
         <Route path="/games/othello" element={<OthelloPage />} />
         <Route path="/games/shooter" element={<ShooterPage />} />
         <Route path="/games/dinosaur" element={<DinosaurPage />} />
+        <Route path="/games/airhockey" element={<AirhockeyPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
